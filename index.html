@@ -25,7 +25,7 @@
     <h1>NISA & 課税シミュレータ</h1>
     
     <div class="summary">
-        💡 <b>ルール:</b> 累計元本が1,800万円を超えると、超えた分の投資から発生する利益に対して<b>30%の税金</b>がかかると仮定して計算します。（生涯投資枠のシミュレーション）
+        💡 <b>ルール:</b> 累計元本が1,800万円を超えると、超えた分の投資から発生する利益に対して、設定された<b>税率</b>がかかると仮定して計算します。
     </div>
 
     <div class="input-group"><label>1. 初期投資額</label><div class="input-container"><input type="number" id="initAsset" value="1070"><span class="unit">万円</span></div></div>
@@ -33,6 +33,7 @@
     <div class="input-group"><label>3. ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum" value="10"><span class="unit">万円</span></div></div>
     <div class="input-group"><label>4. 期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate" value="6"><span class="unit">％</span></div></div>
     <div class="input-group"><label>5. 積立期間</label><div class="input-container"><input type="number" id="years" value="25"><span class="unit">年</span></div></div>
+    <div class="input-group"><label>6. 課税口座の税率</label><div class="input-container"><input type="number" id="taxRate" value="30"><span class="unit">％</span></div></div>
     
     <div class="btn-container"><button class="btn-calc" onclick="calculate()">計算する</button></div>
     
@@ -48,9 +49,10 @@ function calculate() {
     const bonusSum = parseFloat(document.getElementById('bonusSum').value) || 0;
     const annualRate = (parseFloat(document.getElementById('returnRate').value) || 0) / 100;
     const totalYears = parseInt(document.getElementById('years').value) || 0;
+    // 画面から税率を取得して小数に変換
+    const taxRateInput = (parseFloat(document.getElementById('taxRate').value) || 0) / 100;
     
     const NISA_LIMIT = 1800; // 1800万円
-    const TAX_RATE = 0.30;   // 30%
     const monthlyRate = annualRate / 12;
     
     let currentAsset = initAsset;
@@ -73,18 +75,15 @@ function calculate() {
             currentAsset *= (1 + monthlyRate);
         }
 
-        // 利益の総額
         let totalGain = currentAsset - totalPrincipal;
         
-        // 課税対象となる元本の割合を計算
-        // (現在の投資総額のうち、1800万を超えている部分の比率)
         let taxableRatio = 0;
         if (totalPrincipal > NISA_LIMIT) {
             taxableRatio = (totalPrincipal - NISA_LIMIT) / totalPrincipal;
         }
 
-        // 潜在的な税金 = 利益 × 課税元本比率 × 税率
-        let potentialTax = totalGain * taxableRatio * TAX_RATE;
+        // 定数だったTAX_RATEを入力値のtaxRateInputに変更
+        let potentialTax = totalGain * taxableRatio * taxRateInput;
         if (potentialTax < 0) potentialTax = 0;
 
         let netGain = totalGain - potentialTax;
@@ -96,10 +95,12 @@ function calculate() {
         limitLine.push(NISA_LIMIT);
     }
     
-    draw(labels, principalData, netGainData, taxData, limitLine);
+    // グラフのラベル表示用に現在の入力税率を渡す
+    const currentTaxPercent = document.getElementById('taxRate').value;
+    draw(labels, principalData, netGainData, taxData, limitLine, currentTaxPercent);
 }
 
-function draw(labels, principalData, netGainData, taxData, limitLine) {
+function draw(labels, principalData, netGainData, taxData, limitLine, taxPercent) {
     const ctx = document.getElementById('nisaChart').getContext('2d');
     if (nisaChart) nisaChart.destroy();
     
@@ -109,21 +110,22 @@ function draw(labels, principalData, netGainData, taxData, limitLine) {
             labels: labels,
             datasets: [
                 {
-                    label: '潜在的な税金 (30%)',
-                    data: taxData,
-                    backgroundColor: '#e74c3c', // 赤
+                    label: '投資元本',
+                    data: principalData,
+                    backgroundColor: '#bdc3c7',
                     stack: 'stack1'
                 },
                 {
                     label: '利益 (手残り)',
                     data: netGainData,
-                    backgroundColor: '#2ecc71', // 緑
+                    backgroundColor: '#2ecc71',
                     stack: 'stack1'
                 },
                 {
-                    label: '投資元本',
-                    data: principalData,
-                    backgroundColor: '#bdc3c7', // グレー
+                    // 凡例のテキストに動的な税率（例: 30%）が反映されるよう修正
+                    label: '潜在的な税金 (' + taxPercent + '%)',
+                    data: taxData,
+                    backgroundColor: '#e74c3c',
                     stack: 'stack1'
                 },
                 {
@@ -135,7 +137,7 @@ function draw(labels, principalData, netGainData, taxData, limitLine) {
                     borderDash: [5, 5],
                     fill: false,
                     pointRadius: 0,
-                    order: -1 // 最前面に表示
+                    order: -1
                 }
             ]
         },
@@ -149,7 +151,10 @@ function draw(labels, principalData, netGainData, taxData, limitLine) {
             plugins: {
                 tooltip: {
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    itemSort: function(a, b) {
+                        return b.datasetIndex - a.datasetIndex;
+                    }
                 }
             }
         }
