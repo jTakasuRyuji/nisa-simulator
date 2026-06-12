@@ -22,18 +22,20 @@
 <body>
 
 <div class="container">
-    <h1>NISA & 課税シミュレータ</h1>
+    <h1>NISA & 課税口座シミュレータ</h1>
     
     <div class="summary">
-        💡 <b>ルール:</b> 累計元本が1,800万円を超えると、超えた分の投資から発生する利益に対して、設定された<b>税率</b>がかかると仮定して計算します。
+        💡 <b>ルール:</b> 投資元本の累計（現在の利用額 ＋ 今後の積立）が1,800万円を超えると、超えた分の投資から発生する利益に対して設定された税率が課税されます。
     </div>
 
-    <div class="input-group"><label>1. 初期投資額</label><div class="input-container"><input type="number" id="initAsset" value="1070"><span class="unit">万円</span></div></div>
-    <div class="input-group"><label>2. 毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum" value="5"><span class="unit">万円</span></div></div>
-    <div class="input-group"><label>3. ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum" value="10"><span class="unit">万円</span></div></div>
-    <div class="input-group"><label>4. 期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate" value="6"><span class="unit">％</span></div></div>
-    <div class="input-group"><label>5. 積立期間</label><div class="input-container"><input type="number" id="years" value="25"><span class="unit">年</span></div></div>
-    <div class="input-group"><label>6. 課税口座の税率</label><div class="input-container"><input type="number" id="taxRate" value="30"><span class="unit">％</span></div></div>
+    <div class="input-group"><label>1. 現在の投資総額 (時価評価額)</label><div class="input-container"><input type="number" id="initAsset" value="1070"><span class="unit">万円</span></div></div>
+    <div class="input-group"><label>2. 現在のNISA枠 投資元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal" value="800"><span class="unit">万円</span></div></div>
+    
+    <div class="input-group"><label>3. 毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum" value="5"><span class="unit">万円</span></div></div>
+    <div class="input-group"><label>4. ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum" value="10"><span class="unit">万円</span></div></div>
+    <div class="input-group"><label>5. 期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate" value="6"><span class="unit">％</span></div></div>
+    <div class="input-group"><label>6. 今後の運用期間</label><div class="input-container"><input type="number" id="years" value="25"><span class="unit">年</span></div></div>
+    <div class="input-group"><label>7. 課税口座の税率</label><div class="input-container"><input type="number" id="taxRate" value="30"><span class="unit">％</span></div></div>
     
     <div class="btn-container"><button class="btn-calc" onclick="calculate()">計算する</button></div>
     
@@ -44,58 +46,89 @@
 let nisaChart = null;
 
 function calculate() {
+    // 画面からの入力値取得
     const initAsset = parseFloat(document.getElementById('initAsset').value) || 0;
+    const initNisaPrincipal = parseFloat(document.getElementById('initNisaPrincipal').value) || 0;
     const monthlySum = parseFloat(document.getElementById('monthlySum').value) || 0;
     const bonusSum = parseFloat(document.getElementById('bonusSum').value) || 0;
     const annualRate = (parseFloat(document.getElementById('returnRate').value) || 0) / 100;
     const totalYears = parseInt(document.getElementById('years').value) || 0;
-    // 画面から税率を取得して小数に変換
     const taxRateInput = (parseFloat(document.getElementById('taxRate').value) || 0) / 100;
     
     const NISA_LIMIT = 1800; // 1800万円
     const monthlyRate = annualRate / 12;
     
-    let currentAsset = initAsset;
-    let totalPrincipal = initAsset;
+    // シミュレーション用変数
+    let currentAsset = initAsset;          // 資産総額（時価）の推移
+    let totalNisaPrincipal = initNisaPrincipal; // NISA枠内に入っている元本の推移
+    let totalTaxablePrincipal = 0;         // 課税枠（1800万超過後）に入った元本の推移
     
+    // 初期状態で既に1800万を超えている特殊ケースのケア
+    if (initNisaPrincipal > NISA_LIMIT) {
+        totalNisaPrincipal = NISA_LIMIT;
+        totalTaxablePrincipal = initNisaPrincipal - NISA_LIMIT;
+    }
+    
+    // 初期状態の利益（時価評価額 - 初期元本）
+    let initialGain = initAsset - initNisaPrincipal;
+    if (initialGain < 0) initialGain = 0;
+
     let labels = ['開始'];
-    let principalData = [initAsset];
-    let netGainData = [0];
+    let principalData = [Math.round(initNisaPrincipal + totalTaxablePrincipal)];
+    let netGainData = [Math.round(initialGain)];
     let taxData = [0];
     let limitLine = [NISA_LIMIT];
 
     for (let y = 1; y <= totalYears; y++) {
         for (let m = 1; m <= 12; m++) {
-            currentAsset += monthlySum;
-            totalPrincipal += monthlySum;
+            let thisMonthInvestment = monthlySum;
             if (m === 6 || m === 12) {
-                currentAsset += bonusSum;
-                totalPrincipal += bonusSum;
+                thisMonthInvestment += bonusSum;
             }
+            
+            // 今月の投資額をNISA枠と課税枠に振り分け
+            if (totalNisaPrincipal < NISA_LIMIT) {
+                let availableNisaSpace = NISA_LIMIT - totalNisaPrincipal;
+                if (thisMonthInvestment <= availableNisaSpace) {
+                    totalNisaPrincipal += thisMonthInvestment;
+                } else {
+                    totalNisaPrincipal = NISA_LIMIT;
+                    totalTaxablePrincipal += (thisMonthInvestment - availableNisaSpace);
+                }
+            } else {
+                totalTaxablePrincipal += thisMonthInvestment;
+            }
+            
+            // 月初の投資反映
+            currentAsset += thisMonthInvestment;
+            // 月末の複利反映
             currentAsset *= (1 + monthlyRate);
         }
 
-        let totalGain = currentAsset - totalPrincipal;
+        // 全体の累計投資元本
+        let cumulativePrincipal = totalNisaPrincipal + totalTaxablePrincipal;
+        // 発生している総利益
+        let totalGain = currentAsset - cumulativePrincipal;
         
+        // 課税対象となる元本の比率（全元本のうち、1800万溢れた元本が占める割合）
         let taxableRatio = 0;
-        if (totalPrincipal > NISA_LIMIT) {
-            taxableRatio = (totalPrincipal - NISA_LIMIT) / totalPrincipal;
+        if (cumulativePrincipal > NISA_LIMIT) {
+            taxableRatio = totalTaxablePrincipal / cumulativePrincipal;
         }
 
-        // 定数だったTAX_RATEを入力値のtaxRateInputに変更
+        // 潜在的な税金計算
         let potentialTax = totalGain * taxableRatio * taxRateInput;
         if (potentialTax < 0) potentialTax = 0;
 
         let netGain = totalGain - potentialTax;
 
         labels.push(y + '年');
-        principalData.push(Math.round(totalPrincipal));
+        principalData.push(Math.round(cumulativePrincipal));
         netGainData.push(Math.round(netGain));
         taxData.push(Math.round(potentialTax));
         limitLine.push(NISA_LIMIT);
     }
     
-    // グラフのラベル表示用に現在の入力税率を渡す
     const currentTaxPercent = document.getElementById('taxRate').value;
     draw(labels, principalData, netGainData, taxData, limitLine, currentTaxPercent);
 }
@@ -122,7 +155,6 @@ function draw(labels, principalData, netGainData, taxData, limitLine, taxPercent
                     stack: 'stack1'
                 },
                 {
-                    // 凡例のテキストに動的な税率（例: 30%）が反映されるよう修正
                     label: '潜在的な税金 (' + taxPercent + '%)',
                     data: taxData,
                     backgroundColor: '#e74c3c',
