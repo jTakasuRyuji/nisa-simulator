@@ -3,73 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NISA・課税ミックスシミュレータ</title>
+    <title>NISA＆課税口座 AB比較シミュレータ</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1 { text-align: center; font-size: 24px; color: #2c3e50; margin-bottom: 25px; }
-        .input-group { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #edf2f7; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .wrapper { max-width: 1400px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 26px; color: #2c3e50; margin-bottom: 20px; }
+        
+        .global-actions { text-align: center; margin-bottom: 20px; }
+        .btn-reset { background-color: #7f8c8d; color: white; border: none; padding: 10px 25px; font-size: 14px; font-weight: bold; border-radius: 20px; cursor: pointer; transition: 0.2s; }
+        .btn-reset:hover { background-color: #95a5a6; }
+
+        /* AB並列レイアウト用 */
+        .comparison-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .sim-box { flex: 1; min-width: 340px; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .sim-box.plan-a { border-top: 6px solid #3498db; }
+        .sim-box.plan-b { border-top: 6px solid #9b59b6; }
+        
+        h2 { font-size: 18px; margin-top: 0; margin-bottom: 15px; color: #34495e; display: flex; justify-content: space-between; }
+        .plan-a h2 { color: #2980b9; }
+        .plan-b h2 { color: #8e44ad; }
+
+        .input-group { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #edf2f7; }
+        .input-group label { font-size: 14px; font-weight: 500; color: #4a5568; }
         .input-container { display: flex; align-items: center; }
-        .input-container input { width: 100px; padding: 8px; font-size: 16px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: right; margin-right: 8px; }
-        .unit { width: 40px; font-size: 15px; }
-        .btn-container { text-align: center; margin-top: 25px; }
-        .btn-calc { background-color: #f39c12; color: white; border: none; padding: 14px 80px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; }
-        .chart-container { margin-top: 40px; height: 500px; }
-        .summary { background: #fdf2e9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+        .input-container input { width: 90px; padding: 6px; font-size: 15px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: right; margin-right: 6px; }
+        .unit { width: 35px; font-size: 14px; color: #718096; }
+        
+        .btn-container { text-align: center; margin-top: 20px; }
+        .btn-calc { color: white; border: none; padding: 12px 50px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; transition: 0.2s; }
+        .plan-a .btn-calc { background-color: #3498db; }
+        .plan-a .btn-calc:hover { background-color: #2980b9; }
+        .plan-b .btn-calc { background-color: #9b59b6; }
+        .plan-b .btn-calc:hover { background-color: #8e44ad; }
+        
+        .chart-container { margin-top: 25px; height: 380px; position: relative; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>NISA & 課税口座シミュレータ</h1>
+<div class="wrapper">
+    <h1>NISA & 課税口座 AB比較シミュレータ</h1>
     
-    <div class="summary">
-        💡 <b>ルール:</b> 投資元本の累計（現在の利用額 ＋ 今後の積立）が1,800万円を超えると、超えた分の投資から発生する利益に対して設定された税率が課税されます。
+    <div class="global-actions">
+        <button class="btn-reset" onclick="resetToDefault()">🔄 初期設定（22歳2万円設定）にリセット</button>
     </div>
 
-    <div class="input-group"><label>1. 現在の投資総額 (時価評価額)</label><div class="input-container"><input type="number" id="initAsset" value="1070"><span class="unit">万円</span></div></div>
-    <div class="input-group"><label>2. 現在のNISA枠 投資元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal" value="800"><span class="unit">万円</span></div></div>
-    
-    <div class="input-group"><label>3. 毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum" value="5"><span class="unit">万円</span></div></div>
-    <div class="input-group"><label>4. ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum" value="10"><span class="unit">万円</span></div></div>
-    <div class="input-group"><label>5. 期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate" value="6"><span class="unit">％</span></div></div>
-    <div class="input-group"><label>6. 今後の運用期間</label><div class="input-container"><input type="number" id="years" value="25"><span class="unit">年</span></div></div>
-    <div class="input-group"><label>7. 課税口座の税率</label><div class="input-container"><input type="number" id="taxRate" value="30"><span class="unit">％</span></div></div>
-    
-    <div class="btn-container"><button class="btn-calc" onclick="calculate()">計算する</button></div>
-    
-    <div class="chart-container"><canvas id="nisaChart"></canvas></div>
+    <div class="comparison-container">
+        <div class="sim-box plan-a">
+            <h2>📊 パターン A</h2>
+            <div class="input-group"><label>現在の投資総額 (時価)</label><div class="input-container"><input type="number" id="initAsset_A"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>現在のNISA元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal_A"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum_A"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum_A"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate_A" step="0.1"><span class="unit">％</span></div></div>
+            <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years_A"><span class="unit">年</span></div></div>
+            <div class="input-group"><label>課税口座の税率</label><div class="input-container"><input type="number" id="taxRate_A"><span class="unit">％</span></div></div>
+            
+            <div class="btn-container"><button class="btn-calc" onclick="calculate('A')">A を計算して保存</button></div>
+            <div class="chart-container"><canvas id="chart_A"></canvas></div>
+        </div>
+
+        <div class="sim-box plan-b">
+            <h2>📊 パターン B</h2>
+            <div class="input-group"><label>現在の投資総額 (時価)</label><div class="input-container"><input type="number" id="initAsset_B"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>現在のNISA元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal_B"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum_B"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum_B"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate_B" step="0.1"><span class="unit">％</span></div></div>
+            <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years_B"><span class="unit">年</span></div></div>
+            <div class="input-group"><label>課税口座の税率</label><div class="input-container"><input type="number" id="taxRate_B"><span class="unit">％</span></div></div>
+            
+            <div class="btn-container"><button class="btn-calc" onclick="calculate('B')">B を計算して保存</button></div>
+            <div class="chart-container"><canvas id="chart_B"></canvas></div>
+        </div>
+    </div>
 </div>
 
 <script>
-let nisaChart = null;
+// グラフオブジェクト保持用
+let charts = { A: null, B: null };
 
-function calculate() {
-    // 画面からの入力値取得
-    const initAsset = parseFloat(document.getElementById('initAsset').value) || 0;
-    const initNisaPrincipal = parseFloat(document.getElementById('initNisaPrincipal').value) || 0;
-    const monthlySum = parseFloat(document.getElementById('monthlySum').value) || 0;
-    const bonusSum = parseFloat(document.getElementById('bonusSum').value) || 0;
-    const annualRate = (parseFloat(document.getElementById('returnRate').value) || 0) / 100;
-    const totalYears = parseInt(document.getElementById('years').value) || 0;
-    const taxRateInput = (parseFloat(document.getElementById('taxRate').value) || 0) / 100;
+// ご指定の「22歳サラリーマン設定」
+const DEFAULTS = {
+    initAsset: 0,
+    initNisaPrincipal: 0,
+    monthlySum: 2,
+    bonusSum: 0,
+    returnRate: 7,
+    years: 43, // 65歳 - 22歳 = 43年
+    taxRate: 30
+};
+
+// 起動時の処理
+window.onload = function() {
+    loadInputs('A');
+    loadInputs('B');
+    calculate('A');
+    calculate('B');
+};
+
+// 指定されたパターンの入力をローカルストレージから読込（無ければデフォルト値）
+function loadInputs(suffix) {
+    document.getElementById(`initAsset_${suffix}`).value = localStorage.getItem(`initAsset_${suffix}`) ?? DEFAULTS.initAsset;
+    document.getElementById(`initNisaPrincipal_${suffix}`).value = localStorage.getItem(`initNisaPrincipal_${suffix}`) ?? DEFAULTS.initNisaPrincipal;
+    document.getElementById(`monthlySum_${suffix}`).value = localStorage.getItem(`monthlySum_${suffix}`) ?? DEFAULTS.monthlySum;
+    document.getElementById(`bonusSum_${suffix}`).value = localStorage.getItem(`bonusSum_${suffix}`) ?? DEFAULTS.bonusSum;
+    document.getElementById(`returnRate_${suffix}`).value = localStorage.getItem(`returnRate_${suffix}`) ?? DEFAULTS.returnRate;
+    document.getElementById(`years_${suffix}`).value = localStorage.getItem(`years_${suffix}`) ?? DEFAULTS.years;
+    document.getElementById(`taxRate_${suffix}`).value = localStorage.getItem(`taxRate_${suffix}`) ?? DEFAULTS.taxRate;
+}
+
+// 入力値をローカルストレージに保存
+function saveInputs(suffix) {
+    localStorage.setItem(`initAsset_${suffix}`, document.getElementById(`initAsset_${suffix}`).value);
+    localStorage.setItem(`initNisaPrincipal_${suffix}`, document.getElementById(`initNisaPrincipal_${suffix}`).value);
+    localStorage.setItem(`monthlySum_${suffix}`, document.getElementById(`monthlySum_${suffix}`).value);
+    localStorage.setItem(`bonusSum_${suffix}`, document.getElementById(`bonusSum_${suffix}`).value);
+    localStorage.setItem(`returnRate_${suffix}`, document.getElementById(`returnRate_${suffix}`).value);
+    localStorage.setItem(`years_${suffix}`, document.getElementById(`years_${suffix}`).value);
+    localStorage.setItem(`taxRate_${suffix}`, document.getElementById(`taxRate_${suffix}`).value);
+}
+
+// 一発リセット処理
+function resetToDefault() {
+    if (confirm("すべての入力を初期設定（22歳サラリーマン設定）に戻しますか？")) {
+        localStorage.clear();
+        loadInputs('A');
+        loadInputs('B');
+        calculate('A');
+        calculate('B');
+    }
+}
+
+// 計算＆描画ロジック
+function calculate(suffix) {
+    // 保存を実行
+    saveInputs(suffix);
+
+    const initAsset = parseFloat(document.getElementById(`initAsset_${suffix}`).value) || 0;
+    const initNisaPrincipal = parseFloat(document.getElementById(`initNisaPrincipal_${suffix}`).value) || 0;
+    const monthlySum = parseFloat(document.getElementById(`monthlySum_${suffix}`).value) || 0;
+    const bonusSum = parseFloat(document.getElementById(`bonusSum_${suffix}`).value) || 0;
+    const annualRate = (parseFloat(document.getElementById(`returnRate_${suffix}`).value) || 0) / 100;
+    const totalYears = parseInt(document.getElementById(`years_${suffix}`).value) || 0;
+    const taxRateInput = (parseFloat(document.getElementById(`taxRate_${suffix}`).value) || 0) / 100;
     
-    const NISA_LIMIT = 1800; // 1800万円
+    const NISA_LIMIT = 1800;
     const monthlyRate = annualRate / 12;
     
-    // シミュレーション用変数
-    let currentAsset = initAsset;          // 資産総額（時価）の推移
-    let totalNisaPrincipal = initNisaPrincipal; // NISA枠内に入っている元本の推移
-    let totalTaxablePrincipal = 0;         // 課税枠（1800万超過後）に入った元本の推移
+    let currentAsset = initAsset;
+    let totalNisaPrincipal = initNisaPrincipal;
+    let totalTaxablePrincipal = 0;
     
-    // 初期状態で既に1800万を超えている特殊ケースのケア
     if (initNisaPrincipal > NISA_LIMIT) {
         totalNisaPrincipal = NISA_LIMIT;
         totalTaxablePrincipal = initNisaPrincipal - NISA_LIMIT;
     }
     
-    // 初期状態の利益（時価評価額 - 初期元本）
     let initialGain = initAsset - initNisaPrincipal;
     if (initialGain < 0) initialGain = 0;
 
@@ -82,11 +173,8 @@ function calculate() {
     for (let y = 1; y <= totalYears; y++) {
         for (let m = 1; m <= 12; m++) {
             let thisMonthInvestment = monthlySum;
-            if (m === 6 || m === 12) {
-                thisMonthInvestment += bonusSum;
-            }
+            if (m === 6 || m === 12) thisMonthInvestment += bonusSum;
             
-            // 今月の投資額をNISA枠と課税枠に振り分け
             if (totalNisaPrincipal < NISA_LIMIT) {
                 let availableNisaSpace = NISA_LIMIT - totalNisaPrincipal;
                 if (thisMonthInvestment <= availableNisaSpace) {
@@ -99,24 +187,18 @@ function calculate() {
                 totalTaxablePrincipal += thisMonthInvestment;
             }
             
-            // 月初の投資反映
             currentAsset += thisMonthInvestment;
-            // 月末の複利反映
             currentAsset *= (1 + monthlyRate);
         }
 
-        // 全体の累計投資元本
         let cumulativePrincipal = totalNisaPrincipal + totalTaxablePrincipal;
-        // 発生している総利益
         let totalGain = currentAsset - cumulativePrincipal;
         
-        // 課税対象となる元本の比率（全元本のうち、1800万溢れた元本が占める割合）
         let taxableRatio = 0;
         if (cumulativePrincipal > NISA_LIMIT) {
             taxableRatio = totalTaxablePrincipal / cumulativePrincipal;
         }
 
-        // 潜在的な税金計算
         let potentialTax = totalGain * taxableRatio * taxRateInput;
         if (potentialTax < 0) potentialTax = 0;
 
@@ -129,15 +211,15 @@ function calculate() {
         limitLine.push(NISA_LIMIT);
     }
     
-    const currentTaxPercent = document.getElementById('taxRate').value;
-    draw(labels, principalData, netGainData, taxData, limitLine, currentTaxPercent);
+    const currentTaxPercent = document.getElementById(`taxRate_${suffix}`).value;
+    drawChart(suffix, labels, principalData, netGainData, taxData, limitLine, currentTaxPercent);
 }
 
-function draw(labels, principalData, netGainData, taxData, limitLine, taxPercent) {
-    const ctx = document.getElementById('nisaChart').getContext('2d');
-    if (nisaChart) nisaChart.destroy();
+function drawChart(suffix, labels, principalData, netGainData, taxData, limitLine, taxPercent) {
+    const ctx = document.getElementById(`chart_${suffix}`).getContext('2d');
+    if (charts[suffix]) charts[suffix].destroy();
     
-    nisaChart = new Chart(ctx, {
+    charts[suffix] = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -192,7 +274,6 @@ function draw(labels, principalData, netGainData, taxData, limitLine, taxPercent
         }
     });
 }
-window.onload = calculate;
 </script>
 </body>
 </html>
