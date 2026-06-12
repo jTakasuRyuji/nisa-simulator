@@ -3,194 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マイNISAシミュレータ</title>
+    <title>NISA・課税ミックスシミュレータ</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f8f9fa;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        h1 {
-            text-align: center;
-            font-size: 24px;
-            color: #2c3e50;
-            margin-bottom: 25px;
-        }
-        .input-group {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #edf2f7;
-        }
-        .input-group label {
-            font-weight: bold;
-            font-size: 15px;
-        }
-        .input-container {
-            display: flex;
-            align-items: center;
-        }
-        .input-container input {
-            width: 120px;
-            padding: 8px;
-            font-size: 16px;
-            border: 1px solid #cbd5e0;
-            border-radius: 6px;
-            text-align: right;
-            margin-right: 8px;
-        }
-        .unit {
-            width: 40px;
-            font-size: 15px;
-            color: #4a5568;
-        }
-        .btn-container {
-            text-align: center;
-            margin-top: 25px;
-        }
-        .btn-calc {
-            background-color: #f39c12;
-            color: white;
-            border: none;
-            padding: 14px 80px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: background 0.2s;
-            box-shadow: 0 4px 6px rgba(243, 156, 18, 0.2);
-        }
-        .btn-calc:hover {
-            background-color: #e67e22;
-        }
-        .chart-container {
-            margin-top: 40px;
-            position: relative;
-            height: 400px;
-            width: 100%;
-        }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; font-size: 24px; color: #2c3e50; margin-bottom: 25px; }
+        .input-group { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #edf2f7; }
+        .input-container { display: flex; align-items: center; }
+        .input-container input { width: 100px; padding: 8px; font-size: 16px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: right; margin-right: 8px; }
+        .unit { width: 40px; font-size: 15px; }
+        .btn-container { text-align: center; margin-top: 25px; }
+        .btn-calc { background-color: #f39c12; color: white; border: none; padding: 14px 80px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; }
+        .chart-container { margin-top: 40px; height: 500px; }
+        .summary { background: #fdf2e9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>マイNISAシミュレータ</h1>
+    <h1>NISA & 課税シミュレータ</h1>
     
-    <div class="input-group">
-        <label>1. 初期投資額は？</label>
-        <div class="input-container">
-            <input type="number" id="initAsset" value="1070">
-            <span class="unit">万円</span>
-        </div>
+    <div class="summary">
+        💡 <b>ルール:</b> 累計元本が1,800万円を超えると、超えた分の投資から発生する利益に対して<b>30%の税金</b>がかかると仮定して計算します。（生涯投資枠のシミュレーション）
     </div>
+
+    <div class="input-group"><label>1. 初期投資額</label><div class="input-container"><input type="number" id="initAsset" value="1070"><span class="unit">万円</span></div></div>
+    <div class="input-group"><label>2. 毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum" value="5"><span class="unit">万円</span></div></div>
+    <div class="input-group"><label>3. ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum" value="10"><span class="unit">万円</span></div></div>
+    <div class="input-group"><label>4. 期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate" value="6"><span class="unit">％</span></div></div>
+    <div class="input-group"><label>5. 積立期間</label><div class="input-container"><input type="number" id="years" value="25"><span class="unit">年</span></div></div>
     
-    <div class="input-group">
-        <label>2. 毎月の積立額は？</label>
-        <div class="input-container">
-            <input type="number" id="monthlySum" value="5">
-            <span class="unit">万円</span>
-        </div>
-    </div>
+    <div class="btn-container"><button class="btn-calc" onclick="calculate()">計算する</button></div>
     
-    <div class="input-group">
-        <label>3. ボーナス時の増額は？ (年2回)</label>
-        <div class="input-container">
-            <input type="number" id="bonusSum" value="10">
-            <span class="unit">万円</span>
-        </div>
-    </div>
-    
-    <div class="input-group">
-        <label>4. 期待リターン（年率）は？</label>
-        <div class="input-container">
-            <input type="number" id="returnRate" value="6" step="0.1">
-            <span class="unit">％</span>
-        </div>
-    </div>
-    
-    <div class="input-group">
-        <label>5. 積立期間は？</label>
-        <div class="input-container">
-            <input type="number" id="years" value="12">
-            <span class="unit">年</span>
-        </div>
-    </div>
-    
-    <div class="btn-container">
-        <button class="btn-calc" onclick="calculateNISA()">計算する</button>
-    </div>
-    
-    <div class="chart-container">
-        <canvas id="nisaChart"></canvas>
-    </div>
+    <div class="chart-container"><canvas id="nisaChart"></canvas></div>
 </div>
 
 <script>
 let nisaChart = null;
 
-function calculateNISA() {
-    // 入力値の取得（万円単位をベースに計算、リターンは小数に）
+function calculate() {
     const initAsset = parseFloat(document.getElementById('initAsset').value) || 0;
     const monthlySum = parseFloat(document.getElementById('monthlySum').value) || 0;
     const bonusSum = parseFloat(document.getElementById('bonusSum').value) || 0;
     const annualRate = (parseFloat(document.getElementById('returnRate').value) || 0) / 100;
     const totalYears = parseInt(document.getElementById('years').value) || 0;
     
-    const monthlyRate = annualRate / 12; // 月利
+    const NISA_LIMIT = 1800; // 1800万円
+    const TAX_RATE = 0.30;   // 30%
+    const monthlyRate = annualRate / 12;
     
     let currentAsset = initAsset;
-    let totalInvestment = initAsset;
+    let totalPrincipal = initAsset;
     
-    const labels = ['スタート'];
-    const assetData = [Math.round(initAsset)];
-    const investmentData = [Math.round(initAsset)];
-    
-    // 1年ごとのループ
-    for (let year = 1; year <= totalYears; year++) {
-        // 12ヶ月分の複利・積立計算
-        for (let month = 1; month <= 12; month++) {
-            // 月初の積立
+    let labels = ['開始'];
+    let principalData = [initAsset];
+    let netGainData = [0];
+    let taxData = [0];
+    let limitLine = [NISA_LIMIT];
+
+    for (let y = 1; y <= totalYears; y++) {
+        for (let m = 1; m <= 12; m++) {
             currentAsset += monthlySum;
-            totalInvestment += monthlySum;
-            
-            // ボーナス増額（年2回、ここでは6月と12月を想定）
-            if (month === 6 || month === 12) {
+            totalPrincipal += monthlySum;
+            if (m === 6 || m === 12) {
                 currentAsset += bonusSum;
-                totalInvestment += bonusSum;
+                totalPrincipal += bonusSum;
             }
-            
-            // 月末の利息反映
             currentAsset *= (1 + monthlyRate);
         }
+
+        // 利益の総額
+        let totalGain = currentAsset - totalPrincipal;
         
-        labels.push(year + '年目');
-        assetData.push(Math.round(currentAsset));
-        investmentData.push(Math.round(totalInvestment));
+        // 課税対象となる元本の割合を計算
+        // (現在の投資総額のうち、1800万を超えている部分の比率)
+        let taxableRatio = 0;
+        if (totalPrincipal > NISA_LIMIT) {
+            taxableRatio = (totalPrincipal - NISA_LIMIT) / totalPrincipal;
+        }
+
+        // 潜在的な税金 = 利益 × 課税元本比率 × 税率
+        let potentialTax = totalGain * taxableRatio * TAX_RATE;
+        if (potentialTax < 0) potentialTax = 0;
+
+        let netGain = totalGain - potentialTax;
+
+        labels.push(y + '年');
+        principalData.push(Math.round(totalPrincipal));
+        netGainData.push(Math.round(netGain));
+        taxData.push(Math.round(potentialTax));
+        limitLine.push(NISA_LIMIT);
     }
     
-    // グラフの描画処理
-    drawChart(labels, assetData, investmentData);
+    draw(labels, principalData, netGainData, taxData, limitLine);
 }
 
-function drawChart(labels, assetData, investmentData) {
+function draw(labels, principalData, netGainData, taxData, limitLine) {
     const ctx = document.getElementById('nisaChart').getContext('2d');
-    
-    // 既にグラフが存在する場合は一度破棄して再描画
-    if (nisaChart) {
-        nisaChart.destroy();
-    }
+    if (nisaChart) nisaChart.destroy();
     
     nisaChart = new Chart(ctx, {
         type: 'bar',
@@ -198,18 +109,33 @@ function drawChart(labels, assetData, investmentData) {
             labels: labels,
             datasets: [
                 {
-                    label: '運用資産総額 (万円)',
-                    data: assetData,
-                    backgroundColor: '#3498db',
-                    borderColor: '#2980b9',
-                    borderWidth: 1
+                    label: '潜在的な税金 (30%)',
+                    data: taxData,
+                    backgroundColor: '#e74c3c', // 赤
+                    stack: 'stack1'
                 },
                 {
-                    label: '元本のみ (万円)',
-                    data: investmentData,
-                    backgroundColor: '#bdc3c7',
-                    borderColor: '#95a5a6',
-                    borderWidth: 1
+                    label: '利益 (手残り)',
+                    data: netGainData,
+                    backgroundColor: '#2ecc71', // 緑
+                    stack: 'stack1'
+                },
+                {
+                    label: '投資元本',
+                    data: principalData,
+                    backgroundColor: '#bdc3c7', // グレー
+                    stack: 'stack1'
+                },
+                {
+                    label: 'NISA枠(1800万)',
+                    data: limitLine,
+                    type: 'line',
+                    borderColor: '#e74c3c',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    order: -1 // 最前面に表示
                 }
             ]
         },
@@ -217,29 +143,19 @@ function drawChart(labels, assetData, investmentData) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) { return value + '万'; }
-                    }
-                }
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, title: { display: true, text: '万円' } }
             },
             plugins: {
                 tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label.split(' ')[0] + ': ' + context.raw.toLocaleString() + ' 万円';
-                        }
-                    }
+                    mode: 'index',
+                    intersect: false
                 }
             }
         }
     });
 }
-
-// 初期起動時に一度計算を実行
-window.onload = calculateNISA;
+window.onload = calculate;
 </script>
-
 </body>
 </html>
