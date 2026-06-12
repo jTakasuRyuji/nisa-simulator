@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NISA ＆ iDeCo ハイブリッドシミュレータ</title>
+    <title>NISA ＆ iDeCo セパレートシミュレータ</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
@@ -14,266 +14,293 @@
         .btn-reset { background-color: #7f8c8d; color: white; border: none; padding: 10px 25px; font-size: 14px; font-weight: bold; border-radius: 20px; cursor: pointer; }
         .btn-reset:hover { background-color: #95a5a6; }
 
+        /* 左右並列レイアウト（左NISA、右iDeCo） */
         .comparison-container { display: flex; gap: 20px; flex-wrap: wrap; }
         .sim-box { flex: 1; min-width: 450px; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
-        .sim-box.plan-a { border-top: 6px solid #3498db; }
-        .sim-box.plan-b { border-top: 6px solid #9b59b6; }
+        .sim-box.nisa-side { border-top: 6px solid #3498db; }
+        .sim-box.ideco-side { border-top: 6px solid #e67e22; }
         
-        h2 { font-size: 18px; margin-top: 0; margin-bottom: 15px; color: #34495e; }
-        .section-title { font-size: 14px; font-weight: bold; color: #e67e22; margin: 15px 0 5px 0; border-left: 4px solid #e67e22; padding-left: 8px; }
+        h2 { font-size: 20px; margin-top: 0; margin-bottom: 15px; text-align: center; }
+        .nisa-side h2 { color: #2980b9; }
+        .ideco-side h2 { color: #d35400; }
 
-        .input-group { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #edf2f7; }
-        .input-group label { font-size: 13px; font-weight: 500; color: #4a5568; }
+        .section-title { font-size: 14px; font-weight: bold; color: #7f8c8d; margin: 15px 0 5px 0; border-left: 4px solid #7f8c8d; padding-left: 8px; }
+
+        .input-group { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #edf2f7; }
+        .input-group label { font-size: 14px; font-weight: 500; color: #4a5568; }
         .input-container { display: flex; align-items: center; }
-        .input-container input { width: 90px; padding: 6px; font-size: 14px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: right; margin-right: 6px; }
-        .unit { width: 35px; font-size: 13px; color: #718096; }
+        .input-container input { width: 90px; padding: 6px; font-size: 15px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: right; margin-right: 6px; }
+        .unit { width: 35px; font-size: 14px; color: #718096; }
         
         .btn-container { text-align: center; margin-top: 20px; }
-        .btn-calc { color: white; border: none; padding: 12px 50px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; }
-        .plan-a .btn-calc { background-color: #3498db; }
-        .plan-b .btn-calc { background-color: #9b59b6; }
+        .btn-calc { color: white; border: none; padding: 12px 50px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; transition: 0.2s; }
+        .nisa-side .btn-calc { background-color: #3498db; }
+        .nisa-side .btn-calc:hover { background-color: #2980b9; }
+        .ideco-side .btn-calc { background-color: #e67e22; }
+        .ideco-side .btn-calc:hover { background-color: #d35400; }
         
-        .chart-container { margin-top: 25px; height: 400px; position: relative; }
+        .chart-container { margin-top: 25px; height: 420px; position: relative; }
     </style>
 </head>
 <body>
 
 <div class="wrapper">
-    <h1>NISA ＆ iDeCo ハイブリッドシミュレータ</h1>
+    <h1>NISA ＆ iDeCo 分離シミュレータ</h1>
     
     <div class="global-actions">
         <button class="btn-reset" onclick="resetToDefault()">🔄 初期設定（22歳サラリーマン設定）にリセット</button>
     </div>
 
     <div class="comparison-container">
-        <div class="sim-box plan-a">
-            <h2>📊 パターン A</h2>
-            
-            <div class="section-title">【共通設定】</div>
-            <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years_A"><span class="unit">年</span></div></div>
-            <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate_A" step="0.1"><span class="unit">％</span></div></div>
-            <div class="input-group"><label>出口の想定税率 (所得税・住民税分)</label><div class="input-container"><input type="number" id="taxRate_A"><span class="unit">％</span></div></div>
+        <div class="sim-box nisa-side">
+            <h2>📈 NISA 資産推移</h2>
+            <div class="section-title">運用条件</div>
+            <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years_NISA"><span class="unit">年</span></div></div>
+            <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate_NISA" step="0.1"><span class="unit">％</span></div></div>
+            <div class="input-group"><label>枠超過時の税率</label><div class="input-container"><input type="number" id="taxRate_NISA"><span class="unit">％</span></div></div>
 
-            <div class="section-title">【NISA口座】</div>
-            <div class="input-group"><label>現在のNISA時価評価額</label><div class="input-container"><input type="number" id="initAsset_A"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>現在のNISA元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal_A"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>毎月のNISA積立額</label><div class="input-container"><input type="number" id="monthlySum_A"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum_A"><span class="unit">万円</span></div></div>
-
-            <div class="section-title">【iDeCo口座】</div>
-            <div class="input-group"><label>現在のiDeCo時価評価額</label><div class="input-container"><input type="number" id="initIdecoAsset_A"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>これまでのiDeCo加入年数</label><div class="input-container"><input type="number" id="initIdecoYears_A"><span class="unit">年</span></div></div>
-            <div class="input-group"><label>毎日のiDeCo掛金 (月額)</label><div class="input-container"><input type="number" id="monthlyIdeco_A"><span class="unit">万円</span></div></div>
+            <div class="section-title">現在の資産と積立設定</div>
+            <div class="input-group"><label>現在の時価評価額</label><div class="input-container"><input type="number" id="initAsset_NISA"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>現在のNISA元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal_NISA"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum_NISA"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum_NISA"><span class="unit">万円</span></div></div>
             
-            <div class="btn-container"><button class="btn-calc" onclick="calculate('A')">A を計算して保存</button></div>
-            <div class="chart-container"><canvas id="chart_A"></canvas></div>
+            <div class="btn-container"><button class="btn-calc" onclick="calculateNISA()">NISAを計算して保存</button></div>
+            <div class="chart-container"><canvas id="chart_NISA"></canvas></div>
         </div>
 
-        <div class="sim-box plan-b">
-            <h2>📊 パターン B</h2>
-            
-            <div class="section-title">【共通設定】</div>
-            <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years_B"><span class="unit">年</span></div></div>
-            <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate_B" step="0.1"><span class="unit">％</span></div></div>
-            <div class="input-group"><label>出口の想定税率 (所得税・住民税分)</label><div class="input-container"><input type="number" id="taxRate_B"><span class="unit">％</span></div></div>
+        <div class="sim-box ideco-side">
+            <h2>💰 iDeCo 資産推移</h2>
+            <div class="section-title">運用条件</div>
+            <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years_iDeCo"><span class="unit">年</span></div></div>
+            <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate_iDeCo" step="0.1"><span class="unit">％</span></div></div>
+            <div class="input-group"><label>出口の想定税率</label><div class="input-container"><input type="number" id="taxRate_iDeCo"><span class="unit">％</span></div></div>
 
-            <div class="section-title">【NISA口座】</div>
-            <div class="input-group"><label>現在のNISA時価評価額</label><div class="input-container"><input type="number" id="initAsset_B"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>現在のNISA元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal_B"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>毎月のNISA積立額</label><div class="input-container"><input type="number" id="monthlySum_B"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum_B"><span class="unit">万円</span></div></div>
-
-            <div class="section-title">【iDeCo口座】</div>
-            <div class="input-group"><label>現在のiDeCo時価評価額</label><div class="input-container"><input type="number" id="initIdecoAsset_B"><span class="unit">万円</span></div></div>
-            <div class="input-group"><label>これまでのiDeCo加入年数</label><div class="input-container"><input type="number" id="initIdecoYears_B"><span class="unit">年</span></div></div>
-            <div class="input-group"><label>毎日のiDeCo掛金 (月額)</label><div class="input-container"><input type="number" id="monthlyIdeco_B"><span class="unit">万円</span></div></div>
+            <div class="section-title">現在の資産と掛金設定</div>
+            <div class="input-group"><label>現在の時価評価額</label><div class="input-container"><input type="number" id="initAsset_iDeCo"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label>これまでのiDeCo加入年数</label><div class="input-container"><input type="number" id="initYears_iDeCo"><span class="unit">年</span></div></div>
+            <div class="input-group"><label>毎月の掛金</label><div class="input-container"><input type="number" id="monthlySum_iDeCo"><span class="unit">万円</span></div></div>
+            <div class="input-group"><label style="color:transparent;">ダミー</label><div class="input-container" style="visibility:hidden;"><input type="number"><span class="unit">万円</span></div></div>
             
-            <div class="btn-container"><button class="btn-calc" onclick="calculate('B')">B を計算して保存</button></div>
-            <div class="chart-container"><canvas id="chart_B"></canvas></div>
+            <div class="btn-container"><button class="btn-calc" onclick="calculateIDeCo()">iDeCoを計算して保存</button></div>
+            <div class="chart-container"><canvas id="chart_iDeCo"></canvas></div>
         </div>
     </div>
 </div>
 
 <script>
-let charts = { A: null, B: null };
+let charts = { NISA: null, iDeCo: null };
 
-// 22歳サラリーマン初期値設定
+// デフォルト値（22歳サラリーマン設定）
 const DEFAULTS = {
-    years: 43,
-    returnRate: 7,
-    taxRate: 30,
-    initAsset: 0,
-    initNisaPrincipal: 0,
-    monthlySum: 2,
-    bonusSum: 0,
-    initIdecoAsset: 0,
-    initIdecoYears: 0,
-    monthlyIdeco: 1.2 // iDeCoの一般的な会社員枠を想定
+    NISA:  { years: 43, returnRate: 7, taxRate: 30, initAsset: 0, initNisaPrincipal: 0, monthlySum: 2, bonusSum: 0 },
+    iDeCo: { years: 43, returnRate: 7, taxRate: 30, initAsset: 0, initYears: 0, monthlySum: 1.2 }
 };
 
 window.onload = function() {
-    ['A', 'B'].forEach(suffix => {
-        loadInputs(suffix);
-        calculate(suffix);
-    });
+    loadInputs('NISA');
+    loadInputs('iDeCo');
+    calculateNISA();
+    calculateIDeCo();
 };
 
-function loadInputs(suffix) {
-    document.getElementById(`years_${suffix}`).value = localStorage.getItem(`years_${suffix}`) ?? DEFAULTS.years;
-    document.getElementById(`returnRate_${suffix}`).value = localStorage.getItem(`returnRate_${suffix}`) ?? DEFAULTS.returnRate;
-    document.getElementById(`taxRate_${suffix}`).value = localStorage.getItem(`taxRate_${suffix}`) ?? DEFAULTS.taxRate;
-    document.getElementById(`initAsset_${suffix}`).value = localStorage.getItem(`initAsset_${suffix}`) ?? DEFAULTS.initAsset;
-    document.getElementById(`initNisaPrincipal_${suffix}`).value = localStorage.getItem(`initNisaPrincipal_${suffix}`) ?? DEFAULTS.initNisaPrincipal;
-    document.getElementById(`monthlySum_${suffix}`).value = localStorage.getItem(`monthlySum_${suffix}`) ?? DEFAULTS.monthlySum;
-    document.getElementById(`bonusSum_${suffix}`).value = localStorage.getItem(`bonusSum_${suffix}`) ?? DEFAULTS.bonusSum;
-    document.getElementById(`initIdecoAsset_${suffix}`).value = localStorage.getItem(`initIdecoAsset_${suffix}`) ?? DEFAULTS.initIdecoAsset;
-    document.getElementById(`initIdecoYears_${suffix}`).value = localStorage.getItem(`initIdecoYears_${suffix}`) ?? DEFAULTS.initIdecoYears;
-    document.getElementById(`monthlyIdeco_${suffix}`).value = localStorage.getItem(`monthlyIdeco_${suffix}`) ?? DEFAULTS.monthlyIdeco;
+function loadInputs(type) {
+    if (type === 'NISA') {
+        document.getElementById('years_NISA').value = localStorage.getItem('years_NISA') ?? DEFAULTS.NISA.years;
+        document.getElementById('returnRate_NISA').value = localStorage.getItem('returnRate_NISA') ?? DEFAULTS.NISA.returnRate;
+        document.getElementById('taxRate_NISA').value = localStorage.getItem('taxRate_NISA') ?? DEFAULTS.NISA.taxRate;
+        document.getElementById('initAsset_NISA').value = localStorage.getItem('initAsset_NISA') ?? DEFAULTS.NISA.initAsset;
+        document.getElementById('initNisaPrincipal_NISA').value = localStorage.getItem('initNisaPrincipal_NISA') ?? DEFAULTS.NISA.initNisaPrincipal;
+        document.getElementById('monthlySum_NISA').value = localStorage.getItem('monthlySum_NISA') ?? DEFAULTS.NISA.monthlySum;
+        document.getElementById('bonusSum_NISA').value = localStorage.getItem('bonusSum_NISA') ?? DEFAULTS.NISA.bonusSum;
+    } else {
+        document.getElementById('years_iDeCo').value = localStorage.getItem('years_iDeCo') ?? DEFAULTS.iDeCo.years;
+        document.getElementById('returnRate_iDeCo').value = localStorage.getItem('returnRate_iDeCo') ?? DEFAULTS.iDeCo.returnRate;
+        document.getElementById('taxRate_iDeCo').value = localStorage.getItem('taxRate_iDeCo') ?? DEFAULTS.iDeCo.taxRate;
+        document.getElementById('initAsset_iDeCo').value = localStorage.getItem('initAsset_iDeCo') ?? DEFAULTS.iDeCo.initAsset;
+        document.getElementById('initYears_iDeCo').value = localStorage.getItem('initYears_iDeCo') ?? DEFAULTS.iDeCo.initYears;
+        document.getElementById('monthlySum_iDeCo').value = localStorage.getItem('monthlySum_iDeCo') ?? DEFAULTS.iDeCo.monthlySum;
+    }
 }
 
-function saveInputs(suffix) {
-    localStorage.setItem(`years_${suffix}`, document.getElementById(`years_${suffix}`).value);
-    localStorage.setItem(`returnRate_${suffix}`, document.getElementById(`returnRate_${suffix}`).value);
-    localStorage.setItem(`taxRate_${suffix}`, document.getElementById(`taxRate_${suffix}`).value);
-    localStorage.setItem(`initAsset_${suffix}`, document.getElementById(`initAsset_${suffix}`).value);
-    localStorage.setItem(`initNisaPrincipal_${suffix}`, document.getElementById(`initNisaPrincipal_${suffix}`).value);
-    localStorage.setItem(`monthlySum_${suffix}`, document.getElementById(`monthlySum_${suffix}`).value);
-    localStorage.setItem(`bonusSum_${suffix}`, document.getElementById(`bonusSum_${suffix}`).value);
-    localStorage.setItem(`initIdecoAsset_${suffix}`, document.getElementById(`initIdecoAsset_${suffix}`).value);
-    localStorage.setItem(`initIdecoYears_${suffix}`, document.getElementById(`initIdecoYears_${suffix}`).value);
-    localStorage.setItem(`monthlyIdeco_${suffix}`, document.getElementById(`monthlyIdeco_${suffix}`).value);
+function saveInputs(type) {
+    if (type === 'NISA') {
+        localStorage.setItem('years_NISA', document.getElementById('years_NISA').value);
+        localStorage.setItem('returnRate_NISA', document.getElementById('returnRate_NISA').value);
+        localStorage.setItem('taxRate_NISA', document.getElementById('taxRate_NISA').value);
+        localStorage.setItem('initAsset_NISA', document.getElementById('initAsset_NISA').value);
+        localStorage.setItem('initNisaPrincipal_NISA', document.getElementById('initNisaPrincipal_NISA').value);
+        localStorage.setItem('monthlySum_NISA', document.getElementById('monthlySum_NISA').value);
+        localStorage.setItem('bonusSum_NISA', document.getElementById('bonusSum_NISA').value);
+    } else {
+        localStorage.setItem('years_iDeCo', document.getElementById('years_iDeCo').value);
+        localStorage.setItem('returnRate_iDeCo', document.getElementById('returnRate_iDeCo').value);
+        localStorage.setItem('taxRate_iDeCo', document.getElementById('taxRate_iDeCo').value);
+        localStorage.setItem('initAsset_iDeCo', document.getElementById('initAsset_iDeCo').value);
+        localStorage.setItem('initYears_iDeCo', document.getElementById('initYears_iDeCo').value);
+        localStorage.setItem('monthlySum_iDeCo', document.getElementById('monthlySum_iDeCo').value);
+    }
 }
 
 function resetToDefault() {
-    if (confirm("入力をすべてリセットしますか？")) {
+    if (confirm("すべての入力を初期設定（22歳サラリーマン設定）に戻しますか？")) {
         localStorage.clear();
-        ['A', 'B'].forEach(suffix => { loadInputs(suffix); calculate(suffix); });
+        loadInputs('NISA'); loadInputs('iDeCo');
+        calculateNISA(); calculateIDeCo();
     }
 }
 
-// 退職所得控除の計算ロジック
+// 退職所得控除の計算ロジック（年数連動）
 function getRetirementDeduction(totalYears) {
     if (totalYears <= 0) return 0;
-    if (totalYears <= 20) {
-        return totalYears * 40; // 20年以下は年40万
-    } else {
-        return 800 + (totalYears - 20) * 70; // 20年超は超えた分年70万
-    }
+    if (totalYears <= 20) return totalYears * 40;
+    return 800 + (totalYears - 20) * 70;
 }
 
-function calculate(suffix) {
-    saveInputs(suffix);
-
-    const totalYears = parseInt(document.getElementById(`years_${suffix}`).value) || 0;
-    const annualRate = (parseFloat(document.getElementById(`returnRate_${suffix}`).value) || 0) / 100;
-    const taxRateInput = (parseFloat(document.getElementById(`taxRate_${suffix}`).value) || 0) / 100;
-    
-    // NISA初期値
-    const initNisaAsset = parseFloat(document.getElementById(`initAsset_${suffix}`).value) || 0;
-    const initNisaPrincipal = parseFloat(document.getElementById(`initNisaPrincipal_${suffix}`).value) || 0;
-    const monthlySum = parseFloat(document.getElementById(`monthlySum_${suffix}`).value) || 0;
-    const bonusSum = parseFloat(document.getElementById(`bonusSum_${suffix}`).value) || 0;
-    
-    // iDeCo初期値
-    const initIdecoAsset = parseFloat(document.getElementById(`initIdecoAsset_${suffix}`).value) || 0;
-    const initIdecoYears = parseInt(document.getElementById(`initIdecoYears_${suffix}`).value) || 0;
-    const monthlyIdeco = parseFloat(document.getElementById(`monthlyIdeco_${suffix}`).value) || 0;
+// 📈 左側：NISAの計算＆描画
+function calculateNISA() {
+    saveInputs('NISA');
+    const years = parseInt(document.getElementById('years_NISA').value) || 0;
+    const annualRate = (parseFloat(document.getElementById('returnRate_NISA').value) || 0) / 100;
+    const taxRate = (parseFloat(document.getElementById('taxRate_NISA').value) || 0) / 100;
+    const initAsset = parseFloat(document.getElementById('initAsset_NISA').value) || 0;
+    const initNisaPrincipal = parseFloat(document.getElementById('initNisaPrincipal_NISA').value) || 0;
+    const monthlySum = parseFloat(document.getElementById('monthlySum_NISA').value) || 0;
+    const bonusSum = parseFloat(document.getElementById('bonusSum_NISA').value) || 0;
 
     const NISA_LIMIT = 1800;
     const monthlyRate = annualRate / 12;
-    
-    // 状態変数
-    let nisaAsset = initNisaAsset;
-    let nisaPrincipal = initNisaPrincipal;
-    let taxablePrincipal = 0;
+
+    let currentAsset = initAsset;
+    let totalNisaPrincipal = initNisaPrincipal;
+    let totalTaxablePrincipal = 0;
+
     if (initNisaPrincipal > NISA_LIMIT) {
-        nisaPrincipal = NISA_LIMIT;
-        taxablePrincipal = initNisaPrincipal - NISA_LIMIT;
+        totalNisaPrincipal = NISA_LIMIT;
+        totalTaxablePrincipal = initNisaPrincipal - NISA_LIMIT;
     }
-    
-    let idecoAsset = initIdecoAsset;
-    let idecoPrincipal = initIdecoAsset; // 掛金元本推移(初期値=初期時価と仮定)
 
     let labels = ['開始'];
-    let principalData = [Math.round(nisaPrincipal + taxablePrincipal + idecoPrincipal)];
-    let netGainData = [Math.round((nisaAsset - nisaPrincipal) + (idecoAsset - idecoPrincipal))];
+    let principalData = [Math.round(initNisaPrincipal + totalTaxablePrincipal)];
+    let netGainData = [Math.round(Math.max(0, initAsset - initNisaPrincipal))];
     let taxData = [0];
     let limitLine = [NISA_LIMIT];
 
-    for (let y = 1; y <= totalYears; y++) {
-        let currentTotalIdecoYears = initIdecoYears + y;
-        
+    for (let y = 1; y <= years; y++) {
         for (let m = 1; m <= 12; m++) {
-            // --- NISA計算 ---
-            let nisaInvest = monthlySum;
-            if (m === 6 || m === 12) nisaInvest += bonusSum;
-            
-            if (nisaPrincipal < NISA_LIMIT) {
-                let space = NISA_LIMIT - nisaPrincipal;
-                if (nisaInvest <= space) { nisaPrincipal += nisaInvest; } 
-                else { nisaPrincipal = NISA_LIMIT; taxablePrincipal += (nisaInvest - space); }
+            let invest = monthlySum;
+            if (m === 6 || m === 12) invest += bonusSum;
+
+            if (totalNisaPrincipal < NISA_LIMIT) {
+                let space = NISA_LIMIT - totalNisaPrincipal;
+                if (invest <= space) { totalNisaPrincipal += invest; } 
+                else { totalNisaPrincipal = NISA_LIMIT; totalTaxablePrincipal += (invest - space); }
             } else {
-                taxablePrincipal += nisaInvest;
+                totalTaxablePrincipal += invest;
             }
-            nisaAsset += nisaInvest;
-            nisaAsset *= (1 + monthlyRate);
-
-            // --- iDeCo計算 ---
-            idecoAsset += monthlyIdeco;
-            idecoPrincipal += monthlyIdeco;
-            idecoAsset *= (1 + monthlyRate);
+            currentAsset += invest;
+            currentAsset *= (1 + monthlyRate);
         }
 
-        // 1. NISA枠外の税金計算
-        let totalNisaPrincipal = nisaPrincipal + taxablePrincipal;
-        let nisaGain = nisaAsset - totalNisaPrincipal;
-        let nisaTaxableRatio = totalNisaPrincipal > NISA_LIMIT ? taxablePrincipal / totalNisaPrincipal : 0;
-        let nisaTax = nisaGain * nisaTaxableRatio * taxRateInput;
-        if (nisaTax < 0) nisaTax = 0;
+        let cumulativePrincipal = totalNisaPrincipal + totalTaxablePrincipal;
+        let totalGain = currentAsset - cumulativePrincipal;
+        let taxableRatio = cumulativePrincipal > NISA_LIMIT ? totalTaxablePrincipal / cumulativePrincipal : 0;
+        let potentialTax = Math.max(0, totalGain * taxableRatio * taxRate);
+        let netGain = totalGain - potentialTax;
 
-        // 2. iDeCoの退職所得控除枠による税金計算
-        let idecoDeduction = getRetirementDeduction(currentTotalIdecoYears);
-        let idecoTax = 0;
-        if (idecoAsset > idecoDeduction) {
-            // 課税対象 = (iDeCo総額 - 退職所得控除) * 0.5
-            idecoTax = (idecoAsset - idecoDeduction) * 0.5 * taxRateInput;
+        labels.push(y + '年');
+        principalData.push(Math.round(cumulativePrincipal));
+        netGainData.push(Math.round(netGain));
+        taxData.push(Math.round(potentialTax));
+        limitLine.push(NISA_LIMIT);
+    }
+
+    drawChart('NISA', 'chart_NISA', labels, principalData, netGainData, taxData, limitLine, 'NISA枠(1800万)', '#3498db', document.getElementById('taxRate_NISA').value);
+}
+
+// 💰 右側：iDeCoの計算＆描画
+function calculateIDeCo() {
+    saveInputs('iDeCo');
+    const years = parseInt(document.getElementById('years_iDeCo').value) || 0;
+    const annualRate = (parseFloat(document.getElementById('returnRate_iDeCo').value) || 0) / 100;
+    const taxRate = (parseFloat(document.getElementById('taxRate_iDeCo').value) || 0) / 100;
+    const initAsset = parseFloat(document.getElementById('initAsset_iDeCo').value) || 0;
+    const initYears = parseInt(document.getElementById('initYears_iDeCo').value) || 0;
+    const monthlySum = parseFloat(document.getElementById('monthlySum_iDeCo').value) || 0;
+
+    const monthlyRate = annualRate / 12;
+
+    let currentAsset = initAsset;
+    let totalPrincipal = initAsset; // 掛金累計
+
+    let labels = ['開始'];
+    let principalData = [Math.round(totalPrincipal)];
+    let netGainData = [0];
+    let taxData = [0];
+    let deductionLine = [getRetirementDeduction(initYears)];
+
+    for (let y = 1; y <= years; y++) {
+        let currentTotalYears = initYears + y;
+
+        for (let m = 1; m <= 12; m++) {
+            currentAsset += monthlySum;
+            totalPrincipal += monthlySum;
+            currentAsset *= (1 + monthlyRate);
         }
 
-        // 合計値の算出
-        let totalPrincipal = totalNisaPrincipal + idecoPrincipal;
-        let totalTax = nisaTax + idecoTax;
-        // 手残り利益 = (NISA総資産 + iDeCo総資産 - 総元本) - 総税金
-        let netGain = (nisaAsset + idecoAsset - totalPrincipal) - totalTax;
+        // iDeCo出口税制：(受取総額 - 退職所得控除) * 0.5 * 税率
+        let deduction = getRetirementDeduction(currentTotalYears);
+        let potentialTax = 0;
+        if (currentAsset > deduction) {
+            potentialTax = (currentAsset - deduction) * 0.5 * taxRate;
+        }
+
+        let totalGain = currentAsset - totalPrincipal;
+        let netGain = totalGain - potentialTax;
 
         labels.push(y + '年');
         principalData.push(Math.round(totalPrincipal));
         netGainData.push(Math.round(netGain));
-        taxData.push(Math.round(totalTax));
-        limitLine.push(NISA_LIMIT);
+        taxData.push(Math.round(potentialTax));
+        deductionLine.push(Math.round(deduction));
     }
-    
-    drawChart(suffix, labels, principalData, netGainData, taxData, limitLine, document.getElementById(`taxRate_${suffix}`).value);
+
+    drawChart('iDeCo', 'chart_iDeCo', labels, principalData, netGainData, taxData, deductionLine, '退職所得控除額', '#e67e22', document.getElementById('taxRate_iDeCo').value);
 }
 
-function drawChart(suffix, labels, principalData, netGainData, taxData, limitLine, taxPercent) {
-    const ctx = document.getElementById(`chart_${suffix}`).getContext('2d');
-    if (charts[suffix]) charts[suffix].destroy();
+// 共通グラフ描画関数
+function drawChart(type, canvasId, labels, principalData, netGainData, taxData, lineData, lineLabel, lineColor, taxPercent) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (charts[type]) charts[type].destroy();
     
-    charts[suffix] = new Chart(ctx, {
+    charts[type] = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [
-                { label: '合計投資元本', data: principalData, backgroundColor: '#bdc3c7', stack: 'stack1' },
-                { label: '合計利益 (手残り)', data: netGainData, backgroundColor: '#2ecc71', stack: 'stack1' },
-                { label: '潜在的リスク税金', data: taxData, backgroundColor: '#e74c3c', stack: 'stack1' },
-                { label: 'NISA枠(1800万)', data: limitLine, type: 'line', borderColor: '#3498db', borderWidth: 2, borderDash: [5, 5], fill: false, pointRadius: 0, order: -1 }
+                { label: '投資元本', data: principalData, backgroundColor: '#bdc3c7', stack: 'stack1' },
+                { label: '利益 (手残り)', data: netGainData, backgroundColor: '#2ecc71', stack: 'stack1' },
+                { label: '潜在的な税金 (' + taxPercent + '%)', data: taxData, backgroundColor: '#e74c3c', stack: 'stack1' },
+                {
+                    label: lineLabel,
+                    data: lineData,
+                    type: 'line',
+                    borderColor: lineColor,
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    order: -1
+                }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: '万円' } } },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, title: { display: true, text: '万円' } }
+            },
             plugins: { tooltip: { mode: 'index', intersect: false, itemSort: (a, b) => b.datasetIndex - a.datasetIndex } }
         }
     });
