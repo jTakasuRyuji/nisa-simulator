@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NISAシミュレータ</title>
+    <meta name="description" content="NISAと課税口座の資産推移をシミュレーションするスマホ用アプリ">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 12px; -webkit-text-size-adjust: 100%; }
+        .wrapper { max-width: 640px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 21px; color: #2c3e50; margin: 8px 0 14px 0; }
+
+        .card { background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .card.inputs { border-top: 6px solid #3498db; }
+
+        .input-group { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #edf2f7; }
+        .input-group label { font-size: 14px; font-weight: 500; color: #4a5568; flex: 1; padding-right: 8px; }
+        .input-container { display: flex; align-items: center; }
+        .input-container input { width: 96px; padding: 9px 8px; font-size: 16px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: right; margin-right: 6px; }
+        .unit { width: 32px; font-size: 14px; color: #718096; }
+
+        .btn-calc { background-color: #3498db; color: white; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; margin-top: 16px; }
+        .btn-calc:active { background-color: #2980b9; }
+
+        .sub-actions { display: flex; gap: 10px; margin-top: 12px; }
+        .sub-actions button { flex: 1; border: none; padding: 10px; font-size: 13px; font-weight: bold; border-radius: 20px; cursor: pointer; color: white; }
+        .btn-preset { background-color: #16a085; }
+        .btn-reset { background-color: #7f8c8d; }
+
+        .summary h2 { font-size: 15px; margin: 0 0 6px 0; color: #2c3e50; }
+        .summary .big-net { font-size: 30px; font-weight: bold; color: #27ae60; text-align: center; margin: 8px 0 2px 0; }
+        .summary .big-net-label { text-align: center; font-size: 13px; color: #718096; margin-bottom: 12px; }
+        .summary-item { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; border-bottom: 1px dotted #e2e8f0; }
+        .summary-item .s-label { color: #4a5568; }
+        .summary-item .s-value { font-weight: bold; color: #2c3e50; }
+
+        .chart-container { height: 340px; position: relative; }
+        .footer-note { text-align: center; font-size: 12px; color: #a0aec0; margin: 4px 0 16px 0; }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h1>📈 NISAシミュレータ</h1>
+
+    <div class="card inputs">
+        <div class="input-group"><label>現在の投資総額 (時価)</label><div class="input-container"><input type="number" id="initAsset" inputmode="decimal"><span class="unit">万円</span></div></div>
+        <div class="input-group"><label>現在のNISA元本 (累積)</label><div class="input-container"><input type="number" id="initNisaPrincipal" inputmode="decimal"><span class="unit">万円</span></div></div>
+        <div class="input-group"><label>毎月の積立額</label><div class="input-container"><input type="number" id="monthlySum" inputmode="decimal"><span class="unit">万円</span></div></div>
+        <div class="input-group"><label>ボーナス時増額 (年2回)</label><div class="input-container"><input type="number" id="bonusSum" inputmode="decimal"><span class="unit">万円</span></div></div>
+        <div class="input-group"><label>期待リターン (年率)</label><div class="input-container"><input type="number" id="returnRate" inputmode="decimal" step="0.1"><span class="unit">％</span></div></div>
+        <div class="input-group"><label>今後の運用期間</label><div class="input-container"><input type="number" id="years" inputmode="numeric"><span class="unit">年</span></div></div>
+        <div class="input-group"><label>課税口座の税率</label><div class="input-container"><input type="number" id="taxRate" inputmode="decimal"><span class="unit">％</span></div></div>
+
+        <button class="btn-calc" onclick="calculate()">計算する</button>
+        <div class="sub-actions">
+            <button class="btn-preset" onclick="applyTakasuPreset()">📌 自分の設定</button>
+            <button class="btn-reset" onclick="resetToDefault()">🔄 リセット</button>
+        </div>
+    </div>
+
+    <div class="card summary" id="summary" style="display:none;"></div>
+
+    <div class="card">
+        <div class="chart-container"><canvas id="chart"></canvas></div>
+    </div>
+
+    <p class="footer-note">NISA枠 1,800万円を超えた分は課税口座として計算します</p>
+</div>
+
+<script>
+let chart = null;
+const LS_PREFIX = 'nisaPwa_';
+const FIELDS = ['initAsset', 'initNisaPrincipal', 'monthlySum', 'bonusSum', 'returnRate', 'years', 'taxRate'];
+
+// 初期値は本人の設定（52歳→65歳の13年、2026-11時点）
+// ※NISA元本は未確認のため時価と同額（795万円）の仮置き
+const DEFAULTS = { initAsset: 795, initNisaPrincipal: 795, monthlySum: 0, bonusSum: 37.9, returnRate: 4.5, years: 13, taxRate: 20.315 };
+
+function fmtMan(v) { return Math.round(v).toLocaleString('ja-JP'); }
+
+function loadInputs() {
+    FIELDS.forEach(function(f) {
+        const saved = localStorage.getItem(LS_PREFIX + f);
+        document.getElementById(f).value = saved !== null ? saved : DEFAULTS[f];
+    });
+}
+
+function saveInputs() {
+    FIELDS.forEach(function(f) {
+        localStorage.setItem(LS_PREFIX + f, document.getElementById(f).value);
+    });
+}
+
+function applyTakasuPreset() {
+    FIELDS.forEach(function(f) { document.getElementById(f).value = DEFAULTS[f]; });
+    calculate();
+}
+
+function resetToDefault() {
+    if (confirm("入力を初期設定（自分の設定）に戻しますか？")) {
+        FIELDS.forEach(function(f) { localStorage.removeItem(LS_PREFIX + f); });
+        loadInputs();
+        calculate();
+    }
+}
+
+function calculate() {
+    saveInputs();
+
+    const initAsset = parseFloat(document.getElementById('initAsset').value) || 0;
+    const initNisaPrincipal = parseFloat(document.getElementById('initNisaPrincipal').value) || 0;
+    const monthlySum = parseFloat(document.getElementById('monthlySum').value) || 0;
+    const bonusSum = parseFloat(document.getElementById('bonusSum').value) || 0;
+    const annualRate = (parseFloat(document.getElementById('returnRate').value) || 0) / 100;
+    const totalYears = parseInt(document.getElementById('years').value) || 0;
+    const taxRate = (parseFloat(document.getElementById('taxRate').value) || 0) / 100;
+
+    const NISA_LIMIT = 1800;
+    const monthlyRate = annualRate / 12;
+
+    let currentAsset = initAsset;
+    let totalNisaPrincipal = initNisaPrincipal;
+    let totalTaxablePrincipal = 0;
+
+    if (initNisaPrincipal > NISA_LIMIT) {
+        totalNisaPrincipal = NISA_LIMIT;
+        totalTaxablePrincipal = initNisaPrincipal - NISA_LIMIT;
+    }
+
+    let labels = ['開始'];
+    let principalData = [Math.round(totalNisaPrincipal + totalTaxablePrincipal)];
+    let netGainData = [Math.round(Math.max(0, initAsset - initNisaPrincipal))];
+    let taxData = [0];
+    let limitLine = [NISA_LIMIT];
+
+    for (let y = 1; y <= totalYears; y++) {
+        for (let m = 1; m <= 12; m++) {
+            let invest = monthlySum;
+            if (m === 6 || m === 12) invest += bonusSum;
+
+            if (totalNisaPrincipal < NISA_LIMIT) {
+                let space = NISA_LIMIT - totalNisaPrincipal;
+                if (invest <= space) { totalNisaPrincipal += invest; }
+                else { totalNisaPrincipal = NISA_LIMIT; totalTaxablePrincipal += (invest - space); }
+            } else {
+                totalTaxablePrincipal += invest;
+            }
+            currentAsset += invest;
+            currentAsset *= (1 + monthlyRate);
+        }
+
+        let principal = totalNisaPrincipal + totalTaxablePrincipal;
+        let gain = currentAsset - principal;
+        let ratio = principal > NISA_LIMIT ? totalTaxablePrincipal / principal : 0;
+        let tax = Math.max(0, gain * ratio * taxRate);
+
+        labels.push(y + '年');
+        principalData.push(Math.round(principal));
+        netGainData.push(Math.round(gain - tax));
+        taxData.push(Math.round(tax));
+        limitLine.push(NISA_LIMIT);
+    }
+
+    // 数値サマリ
+    let finalPrincipal = totalNisaPrincipal + totalTaxablePrincipal;
+    let finalGain = currentAsset - finalPrincipal;
+    let finalRatio = finalPrincipal > NISA_LIMIT ? totalTaxablePrincipal / finalPrincipal : 0;
+    let finalTax = Math.max(0, finalGain * finalRatio * taxRate);
+    let finalNet = finalPrincipal + (finalGain - finalTax);
+
+    const summary = document.getElementById('summary');
+    summary.style.display = 'block';
+    summary.innerHTML =
+        `<h2>📋 ${totalYears}年後の結果</h2>` +
+        `<div class="big-net">${fmtMan(finalNet)} 万円</div>` +
+        `<div class="big-net-label">手残り（税引後）</div>` +
+        `<div class="summary-item"><span class="s-label">評価額（税引前）</span><span class="s-value">${fmtMan(currentAsset)} 万円</span></div>` +
+        `<div class="summary-item"><span class="s-label">投資元本 合計</span><span class="s-value">${fmtMan(finalPrincipal)} 万円</span></div>` +
+        `<div class="summary-item"><span class="s-label">利益（手残り）</span><span class="s-value">${fmtMan(finalGain - finalTax)} 万円</span></div>` +
+        `<div class="summary-item"><span class="s-label">潜在的な税金</span><span class="s-value">${fmtMan(finalTax)} 万円</span></div>` +
+        `<div class="summary-item"><span class="s-label">NISA枠の使用</span><span class="s-value">${fmtMan(totalNisaPrincipal)} / 1,800 万円</span></div>`;
+
+    drawChart(labels, principalData, netGainData, taxData, limitLine, document.getElementById('taxRate').value);
+}
+
+function drawChart(labels, principalData, netGainData, taxData, limitLine, taxPercent) {
+    const ctx = document.getElementById('chart').getContext('2d');
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: '投資元本', data: principalData, backgroundColor: '#bdc3c7', stack: 'stack1' },
+                { label: '利益 (手残り)', data: netGainData, backgroundColor: '#2ecc71', stack: 'stack1' },
+                { label: '潜在的な税金 (' + taxPercent + '%)', data: taxData, backgroundColor: '#e74c3c', stack: 'stack1' },
+                { label: 'NISA枠(1800万)', data: limitLine, type: 'line', borderColor: '#e74c3c', borderWidth: 2, borderDash: [5, 5], fill: false, pointRadius: 0, order: -1 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, title: { display: true, text: '万円' } }
+            },
+            plugins: { tooltip: { mode: 'index', intersect: false, itemSort: function(a, b) { return b.datasetIndex - a.datasetIndex; } } }
+        }
+    });
+}
+
+window.onload = function() {
+    loadInputs();
+    calculate();
+};
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').catch(function(e) { console.log('SW registration failed:', e); });
+    });
+}
+</script>
+</body>
+</html>
